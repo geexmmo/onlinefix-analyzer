@@ -1,0 +1,47 @@
+name: Deploy to GitHub Pages
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: site
+          continue-on-error: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install curl_cffi beautifulsoup4 lxml httpx
+
+      - name: Sync games
+        run: python main.py sync
+
+      - name: Fetch Steam data
+        run: python main.py steamdb
+
+      - name: Build static site
+        run: python build_site.py site
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          publish_branch: gh-pages
+          user_name: "github-actions"
+          user_email: "github-actions@github.com"
