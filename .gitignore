@@ -1,0 +1,6 @@
+games.db
+site/img/
+site/index.html
+__pycache__/
+*.pyc
+.venv/
