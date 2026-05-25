@@ -249,9 +249,7 @@ def _detect_total_pages() -> int:
 
 
 def _page_is_known(page_num: int) -> bool:
-    """Check if all games on this page and page+1 are already in DB."""
-    from database import count_known_ids
-
+    """Check if all games on this page and page+1 are already in DB and up to date."""
     if page_num == 1:
         url = config.GAMES_PAGE
     else:
@@ -260,17 +258,24 @@ def _page_is_known(page_num: int) -> bool:
     html = _fetch(url)
     soup = BeautifulSoup(html, "lxml")
     articles = soup.select("article.news")
+    games = []
     ids = []
     for article in articles:
         game = parse_game_article(article, config.ONLINEFIX_BASE)
         if game:
+            games.append(game)
             ids.append(game["id"])
     if not ids:
         return False
 
-    known = count_known_ids(ids)
-    if known != len(ids):
+    from database import get_games_last_updated
+    db_data = get_games_last_updated(ids)
+    if len(db_data) != len(ids):
         return False
+        
+    for game in games:
+        if db_data.get(game["id"]) != game.get("last_updated"):
+            return False
 
     # Also check page+1
     next_url = config.GAMES_PAGE_URL.format(page=page_num + 1)
@@ -278,14 +283,21 @@ def _page_is_known(page_num: int) -> bool:
         html2 = _fetch(next_url)
         soup2 = BeautifulSoup(html2, "lxml")
         articles2 = soup2.select("article.news")
+        games2 = []
         ids2 = []
         for article in articles2:
             game = parse_game_article(article, config.ONLINEFIX_BASE)
             if game:
+                games2.append(game)
                 ids2.append(game["id"])
         if ids2:
-            known2 = count_known_ids(ids2)
-            return known2 == len(ids2)
+            db_data2 = get_games_last_updated(ids2)
+            if len(db_data2) != len(ids2):
+                return False
+            for game in games2:
+                if db_data2.get(game["id"]) != game.get("last_updated"):
+                    return False
+            return True
         return True
     except RuntimeError:
         # If page+1 fails, assume it's a dead page (end of content)
@@ -293,9 +305,8 @@ def _page_is_known(page_num: int) -> bool:
 
 
 def _upsert_games(games: list[dict]):
-    from database import upsert_game
-    for game in games:
-        upsert_game(game)
+    from database import upsert_games_bulk
+    upsert_games_bulk(games)
 
 
 def sync() -> int:

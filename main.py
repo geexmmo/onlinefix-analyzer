@@ -251,7 +251,7 @@ def cmd_top(args):
     print("-" * 100)
     for i, r in enumerate(rows, 1):
         review_str = "-"
-        if r["review_score"] and r["review_count"] and r["review_count"] > 0:
+        if r["review_score"] is not None and r["review_count"] and r["review_count"] > 0:
             pct = int(r["review_score"] / r["review_count"] * 100)
             review_str = f"{pct}% ({r['review_count']})"
         price = f"${r['price_usd']}" if r['price_usd'] else "-"

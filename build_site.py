@@ -227,11 +227,17 @@ function sortGames(games, by) {
     case 'rating': key = 'rating_pct'; break;
     case 'comments': key = 'comments'; break;
     case 'players': key = 'players_estimate'; break;
-    case 'release': key = 'release_date'; break;
+    case 'release': key = 'id'; break;
     default: key = 'views';
   }
   return games.slice().sort(function(a, b) {
-    return (b[key] || 0) - (a[key] || 0);
+    var vA = a[key] || 0;
+    var vB = b[key] || 0;
+    if (vA === vB) {
+      if (key === 'rating_pct') return (b.review_count || 0) - (a.review_count || 0);
+      return b.id - a.id;
+    }
+    return vB > vA ? 1 : -1;
   });
 }
 
@@ -245,25 +251,29 @@ function filterGames() {
   var sort = document.getElementById('f-sort').value;
   var genreCbs = document.querySelectorAll('.genre-label input:checked');
   var activeGenres = Array.prototype.map.call(genreCbs, function(c){return c.value;});
+  var isAnd = document.getElementById('genre-mode').checked;
 
   document.getElementById('f-rating-val').textContent = minRating;
 
-  var filtered = GAMES;
-  if (search) filtered = filtered.filter(function(g) { return (g.title || '').toLowerCase().indexOf(search) !== -1; });
-  if (cat) filtered = filtered.filter(function(g) { return g.category === cat; });
-  if (minRating > 0) filtered = filtered.filter(function(g) { return g.rating_pct >= minRating; });
-  if (coop) filtered = filtered.filter(function(g) { return g.coop; });
-  if (multi) filtered = filtered.filter(function(g) { return g.multiplayer; });
-  if (minPlayers > 0) filtered = filtered.filter(function(g) { return g.players_estimate >= minPlayers; });
-  if (activeGenres.length) {
-    var isAnd = document.getElementById('genre-mode').checked;
-    filtered = filtered.filter(function(g) {
+  var filtered = GAMES.filter(function(g) {
+    if (search && (g.title || '').toLowerCase().indexOf(search) === -1) return false;
+    if (cat && g.category !== cat) return false;
+    if (minRating > 0 && (g.rating_pct || 0) < minRating) return false;
+    if (coop && !g.coop) return false;
+    if (multi && !g.multiplayer) return false;
+    if (minPlayers > 0 && (g.players_estimate || 0) < minPlayers) return false;
+    
+    if (activeGenres.length) {
       var combined = (g.genres || '').split(',').concat((g.tags || '').split(','));
       combined = combined.map(function(s){return s.trim();}).filter(function(s){return s;});
-      if (isAnd) return activeGenres.every(function(ag){ return combined.indexOf(ag) !== -1; });
-      return activeGenres.some(function(ag){ return combined.indexOf(ag) !== -1; });
-    });
-  }
+      if (isAnd) {
+        if (!activeGenres.every(function(ag){ return combined.indexOf(ag) !== -1; })) return false;
+      } else {
+        if (!activeGenres.some(function(ag){ return combined.indexOf(ag) !== -1; })) return false;
+      }
+    }
+    return true;
+  });
 
   filtered = sortGames(filtered, sort);
   render(filtered);
@@ -317,7 +327,7 @@ function showDetail(id) {
     + '<tr><td>Views</td><td>'+formatNum(g.views)+'</td></tr>'
     + '<tr><td>Comments</td><td>'+g.comments+'</td></tr>'
     + '<tr><td>Release</td><td>'+esc(g.release_date)+'</td></tr>'
-    + '<tr><td>Co-op / Multi</td><td>'+(g.coop?'Co-op ':'')+(g.multiplayer?'Multi':'')+'</td></tr>';
+    + '<tr><td>Co-op / Multi</td><td>'+(g.coop||g.multiplayer ? (g.coop?'Co-op ':'')+(g.multiplayer?'Multi':'') : 'Single-player')+'</td></tr>';
   if (g.last_updated) html += '<tr><td>Updated</td><td>'+esc(g.last_updated)+'</td></tr>';
 
   html += '<tr><td>Rating</td><td><span class="rating '+rc+'">'+(g.rating_pct||'?')+'%</span> '+(g.review_count?'('+formatNum(g.review_count)+')':'')+'</td></tr>';
@@ -444,7 +454,9 @@ function loadHash() {
     genreDiv.appendChild(lbl);
   }
 
-  document.getElementById('f-search').addEventListener('input', filterGames);
+  var _sd; document.getElementById('f-search').addEventListener('input', function() {
+    clearTimeout(_sd); _sd = setTimeout(filterGames, 150);
+  });
   document.getElementById('f-cat').addEventListener('change', filterGames);
   var _rd; document.getElementById('f-rating').addEventListener('input', function() {
     document.getElementById('f-rating-val').textContent = this.value;
@@ -586,8 +598,10 @@ def _download_previews(games: list[dict], site_dir: str):
                         (img_dir / f"{aid}.tmp").rename(target)
                         g["img_url"] = f"img/{aid}.jpg"
                         saved = True
-            except:
+            except httpx.RequestError:
                 pass
+            except OSError as e:
+                logger.warning("  Disk error saving steam image: %s", e)
 
             # 2) If still no image → try online-fix.me poster
             if not saved and g.get("poster_url"):
@@ -598,8 +612,10 @@ def _download_previews(games: list[dict], site_dir: str):
                             (img_dir / f"{aid}.tmp").write_bytes(resp.content)
                             (img_dir / f"{aid}.tmp").rename(target)
                             g["img_url"] = f"img/{aid}.jpg"
-                except:
+                except httpx.RequestError:
                     pass
+                except OSError as e:
+                    logger.warning("  Disk error saving fallback image: %s", e)
 
             done += 1
             if done % 20 == 0:

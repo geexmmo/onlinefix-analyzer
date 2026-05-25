@@ -69,6 +69,8 @@ def _search_steam_appid(game_title: str) -> Optional[int]:
     """Search Steam store. Returns appid or None. Raises RateLimitedError on persistent 429."""
     clean_title = re.sub(r"\s*\(.*?\)", "", game_title)
     clean_title = re.sub(r"\s*(онлайн|по сети|Online|Online Fix|Fix).*", "", clean_title, flags=re.I).strip()
+    if not clean_title:
+        return None
 
     params = {"term": clean_title, "l": "english"}
     url = f"{config.STEAM_STORE_SEARCH}?{urllib.parse.urlencode(params)}"
@@ -82,6 +84,10 @@ def _search_steam_appid(game_title: str) -> Optional[int]:
                 logger.warning("Steam search 429 for '%s', attempt %d/5, waiting %ds",
                                clean_title, attempt, wait)
                 time.sleep(wait)
+                continue
+            if resp.status_code in (500, 502, 503, 504):
+                logger.warning("Steam search 5xx for '%s', attempt %d/5", clean_title, attempt)
+                time.sleep(2 ** attempt)
                 continue
             if resp.status_code != 200:
                 logger.debug("Search failed for '%s': %d", clean_title, resp.status_code)
@@ -320,14 +326,23 @@ def sync_steamdb(limit: int = 0, refresh: bool = False, purge: bool = False) -> 
         enriched = 0
         i = 0
         backoff = 10
+        rate_limit_start = None
         while i < len(all_games):
             g = all_games[i]
             try:
                 steam_data = lookup_game(g["id"], g["title"])
+                rate_limit_start = None
             except RateLimitedError:
+                if rate_limit_start is None:
+                    rate_limit_start = time.time()
+                elif time.time() - rate_limit_start > 300:
+                    import sys
+                    logger.error("Rate limit persisted for over 5 minutes. Failing gracefully.")
+                    sys.exit(1)
                 logger.warning("Rate limited! Pausing %ds...", backoff)
                 time.sleep(backoff)
                 backoff = min(backoff * 2, 60)
+                _close_session()
                 continue  # retry same game
             backoff = 10  # reset on success
             i += 1
@@ -362,14 +377,23 @@ def sync_steamdb(limit: int = 0, refresh: bool = False, purge: bool = False) -> 
     enriched = 0
     i = 0
     backoff = 10
+    rate_limit_start = None
     while i < len(games):
         game = games[i]
         try:
             steam_data = lookup_game(game["id"], game["title"])
+            rate_limit_start = None
         except RateLimitedError:
+            if rate_limit_start is None:
+                rate_limit_start = time.time()
+            elif time.time() - rate_limit_start > 300:
+                import sys
+                logger.error("Rate limit persisted for over 5 minutes. Failing gracefully.")
+                sys.exit(1)
             logger.warning("Rate limited! Pausing %ds...", backoff)
             time.sleep(backoff)
             backoff = min(backoff * 2, 60)
+            _close_session()
             continue  # retry same game
         backoff = 10
         i += 1
