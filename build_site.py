@@ -19,6 +19,10 @@ GENRE_LIST = [
     "Action", "Adventure", "RPG", "Strategy", "Simulation",
     "Casual", "Indie", "Sports", "Racing",
     "Massively Multiplayer", "Early Access", "Free To Play",
+    "Open World", "Sandbox", "Survival", "Horror",
+    "Building", "Crafting", "Base-Building", "Arcade",
+    "PvP", "Shooter", "Exploration", "Action-Adventure",
+    "PvE",
 ]
 
 HTML_TEMPLATE = r"""<!DOCTYPE html>
@@ -128,6 +132,8 @@ h1 span{font-size:11px}
       <input type="checkbox" id="genre-mode" onchange="toggleGenreMode()">
       <span class="slider"></span>
     </label>
+    <span style="position:relative;cursor:help;font-size:10px;color:#8b949e;border:1px solid #8b949e;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"
+          title="AND: game must have ALL selected. OR: game must have ANY selected.">?</span>
     <div class="genre-list" id="f-genres"></div>
   </label>
   <span class="sep"></span>
@@ -250,9 +256,10 @@ function filterGames() {
   if (activeGenres.length) {
     var isAnd = document.getElementById('genre-mode').checked;
     filtered = filtered.filter(function(g) {
-      var gameGenres = (g.genres || '').split(',').map(function(s){return s.trim();});
-      if (isAnd) return activeGenres.every(function(ag){ return gameGenres.indexOf(ag) !== -1; });
-      return activeGenres.some(function(ag){ return gameGenres.indexOf(ag) !== -1; });
+      var combined = (g.genres || '').split(',').concat((g.tags || '').split(','));
+      combined = combined.map(function(s){return s.trim();}).filter(function(s){return s;});
+      if (isAnd) return activeGenres.every(function(ag){ return combined.indexOf(ag) !== -1; });
+      return activeGenres.some(function(ag){ return combined.indexOf(ag) !== -1; });
     });
   }
 
@@ -324,6 +331,7 @@ function showDetail(id) {
 
   detail.innerHTML = html;
   overlay.classList.add('show');
+  history.pushState({overlay:'detail'}, '');
 }
 
 document.getElementById('overlay').addEventListener('click', function(e) {
@@ -332,6 +340,7 @@ document.getElementById('overlay').addEventListener('click', function(e) {
 
 function showLinuxGuide() {
   document.getElementById('linux-overlay').classList.add('show');
+  history.pushState({overlay:'linux'}, '');
 }
 
 document.getElementById('linux-overlay').addEventListener('click', function(e) {
@@ -348,6 +357,13 @@ function toggleFilters() {
 window.addEventListener('scroll', function() {
   var btn = document.getElementById('scroll-top');
   btn.style.display = window.scrollY > 800 ? 'flex' : 'none';
+});
+
+window.addEventListener('popstate', function() {
+  var d = document.getElementById('overlay');
+  var l = document.getElementById('linux-overlay');
+  if (d.classList.contains('show')) { d.classList.remove('show'); return; }
+  if (l.classList.contains('show')) { l.classList.remove('show'); return; }
 });
 
 function updateHash() {
@@ -428,7 +444,10 @@ function loadHash() {
 
   document.getElementById('f-search').addEventListener('input', filterGames);
   document.getElementById('f-cat').addEventListener('change', filterGames);
-  document.getElementById('f-rating').addEventListener('input', filterGames);
+  var _rd; document.getElementById('f-rating').addEventListener('input', function() {
+    document.getElementById('f-rating-val').textContent = this.value;
+    clearTimeout(_rd); _rd = setTimeout(filterGames, 80);
+  });
   document.getElementById('f-coop').addEventListener('change', filterGames);
   document.getElementById('f-multi').addEventListener('change', filterGames);
   document.getElementById('f-players').addEventListener('change', filterGames);
