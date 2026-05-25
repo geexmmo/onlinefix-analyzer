@@ -329,7 +329,6 @@ function showDetail(id) {
 
   detail.innerHTML = html;
   overlay.classList.add('show');
-  history.pushState({overlay:'detail'}, '');
 }
 
 document.getElementById('overlay').addEventListener('click', function(e) {
@@ -360,7 +359,7 @@ window.addEventListener('scroll', function() {
 window.addEventListener('popstate', function() {
   var d = document.getElementById('overlay');
   var l = document.getElementById('linux-overlay');
-  if (d.classList.contains('show')) { d.classList.remove('show'); history.replaceState(null, '', '#'); return; }
+  if (d.classList.contains('show')) { d.classList.remove('show'); return; }
   if (l.classList.contains('show')) { l.classList.remove('show'); return; }
 });
 
