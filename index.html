@@ -238,7 +238,10 @@ function filterGames(skipUpdateHash) {
   _lastRenderedHash = sig;
 
   var filtered = GAMES.filter(function(g) {
-    if (search && (g.title || '').toLowerCase().indexOf(search) === -1) return false;
+    if (search) {
+      var t = (g.title || '').toLowerCase().replace(/['\u2018-\u201f]/g, '');
+      if (t.indexOf(search.replace(/['\u2018-\u201f]/g, '')) === -1) return false;
+    }
     if (cat && g.category !== cat) return false;
     if (minRating > 0 && (g.rating_pct || 0) < minRating) return false;
     if (coop && !g.coop) return false;
