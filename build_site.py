@@ -58,7 +58,7 @@ h1 span{color:#58a6ff;font-size:13px;font-weight:400}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:16px 20px}
 
-.card{background:#161b22;border:1px solid #30363d;border-radius:6px;overflow:hidden;cursor:pointer;transition:border-color .2s,transform .1s;text-decoration:none;color:inherit;display:block}
+.card{background:#161b22;border:1px solid #30363d;border-radius:6px;overflow:hidden;cursor:pointer;transition:border-color .2s,transform .1s}
 .card:hover{border-color:#58a6ff;transform:translateY(-2px)}
 .card .poster{width:100%;aspect-ratio:16/9;object-fit:cover;background:#0d1117;display:block}
 .card .placeholder{width:100%;aspect-ratio:16/9;background:#21262d;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:11px;text-align:center;padding:8px}
@@ -296,13 +296,28 @@ function render(games) {
     var ratingHtml = g.rating_pct ? '<span class="rating '+rc+'">'+g.rating_pct+'%</span>' : '<span class="rating rating-none">-</span>';
     var coopHtml = g.coop ? '<span class="mode mode-coop">Co-op</span>' : '';
     var multiHtml = g.multiplayer ? '<span class="mode mode-multi">Multi</span>' : '';
-    html += '<a class="card" href="'+g.url+'" onclick="return showDetailEvent(event,'+g.id+')">'
+    html += '<div class="card" data-id="'+g.id+'" data-url="'+esc(g.url)+'">'
     + img
     + '<div class="card-body">'
     + '<div class="card-title">'+esc(g.title)+'</div>'
     + '<div class="card-meta">'+ratingHtml+' '+coopHtml+' '+multiHtml+' <span class="views">'+formatNum(g.views)+'</span></div>'
-    + '</div></a>';
+    + '</div></div>';
+
   }
+  grid.innerHTML = html;
+}
+
+document.getElementById('grid').addEventListener('click', function(e) {
+  var card = e.target.closest('.card');
+  if (!card) return;
+  var id = parseInt(card.dataset.id);
+  if (e.ctrlKey || e.metaKey || e.button === 1) {
+    window.open(card.dataset.url, '_blank');
+    return;
+  }
+  showDetail(id);
+  location.hash = '#game=' + id;
+});
   grid.innerHTML = html;
 }
 
@@ -344,13 +359,6 @@ function showDetail(id) {
   detail.innerHTML = html;
   overlay.classList.add('show');
   history.pushState({overlay:'detail'}, '');
-  location.hash = '#game=' + id;
-}
-
-function showDetailEvent(e, id) {
-  if (e.ctrlKey || e.metaKey || e.button === 1) return true;
-  e.preventDefault();
-  showDetail(id);
 }
 
 document.getElementById('overlay').addEventListener('click', function(e) {
