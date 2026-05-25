@@ -44,6 +44,13 @@ h1 span{color:#58a6ff;font-size:13px;font-weight:400}
 .genre-label.checked{border-color:#58a6ff;background:#1f2a3a}
 .genre-label input{width:0;height:0;opacity:0;position:absolute}
 .genre-list{display:flex;flex-wrap:wrap;gap:4px}
+.toggle-switch{display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;color:#8b949e;vertical-align:middle}
+.toggle-switch input{display:none}
+.toggle-switch .slider{width:28px;height:14px;background:#30363d;border-radius:7px;position:relative;transition:background .15s}
+.toggle-switch .slider::after{content:'';position:absolute;top:2px;left:2px;width:10px;height:10px;background:#8b949e;border-radius:50%;transition:transform .15s,background .15s}
+.toggle-switch input:checked+.slider{background:#1f6feb}
+.toggle-switch input:checked+.slider::after{transform:translateX(14px);background:#fff}
+.toggle-switch .mode-label{min-width:22px;font-weight:600}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;padding:16px 20px}
 
@@ -91,11 +98,13 @@ h1 span{color:#58a6ff;font-size:13px;font-weight:400}
   <label><input type="checkbox" id="f-multi">Multi</label>
   <label title="Minimum player estimate">Players &#x2265;<select id="f-players"><option value="0">Any</option><option value="10000">10K+</option><option value="100000">100K+</option><option value="1000000">1M+</option><option value="10000000">10M+</option></select></label>
   <span class="sep"></span>
-  <label>Genre
-    <span style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
-      <span id="genre-mode" onclick="toggleGenreMode()"
-            style="cursor:pointer;font-size:10px;padding:1px 5px;border-radius:3px;background:#21262d;border:1px solid #30363d">OR</span>
-    </span>
+  <label style="flex-direction:row;align-items:center;gap:6px;white-space:nowrap">
+    Genre
+    <label class="toggle-switch" onclick="event.stopPropagation()">
+      <span class="mode-label" id="genre-mode-label">OR</span>
+      <input type="checkbox" id="genre-mode" onchange="toggleGenreMode()">
+      <span class="slider"></span>
+    </label>
     <div class="genre-list" id="f-genres"></div>
   </label>
   <span class="sep"></span>
@@ -161,7 +170,6 @@ GE-Proton/proton run game.exe
 
 <script>
 var GAMES = __DATA__;
-var GENRE_MODE = 'or';
 
 function ratingClass(pct) {
   if (!pct) return 'rating-none';
@@ -173,8 +181,8 @@ function ratingClass(pct) {
 function formatNum(n) { return n ? n.toLocaleString() : '0'; }
 
 function toggleGenreMode() {
-  GENRE_MODE = GENRE_MODE === 'or' ? 'and' : 'or';
-  document.getElementById('genre-mode').textContent = GENRE_MODE.toUpperCase();
+  var cb = document.getElementById('genre-mode');
+  document.getElementById('genre-mode-label').textContent = cb.checked ? 'AND' : 'OR';
   filterGames();
 }
 
@@ -214,11 +222,10 @@ function filterGames() {
   if (multi) filtered = filtered.filter(function(g) { return g.multiplayer; });
   if (minPlayers > 0) filtered = filtered.filter(function(g) { return g.players_estimate >= minPlayers; });
   if (activeGenres.length) {
+    var isAnd = document.getElementById('genre-mode').checked;
     filtered = filtered.filter(function(g) {
       var gameGenres = (g.genres || '').split(',').map(function(s){return s.trim();});
-      if (GENRE_MODE === 'and') {
-        return activeGenres.every(function(ag){ return gameGenres.indexOf(ag) !== -1; });
-      }
+      if (isAnd) return activeGenres.every(function(ag){ return gameGenres.indexOf(ag) !== -1; });
       return activeGenres.some(function(ag){ return gameGenres.indexOf(ag) !== -1; });
     });
   }
@@ -239,7 +246,7 @@ function render(games) {
   var html = '';
   for (var i = 0; i < games.length; i++) {
     var g = games[i];
-    var img = g.img_url ? '<img class="poster" src="'+g.img_url+'" loading="lazy" alt="">' : '<div class="placeholder">No preview<br>download images<br>and rebuild</div>';
+    var img = g.img_url ? '<img class="poster" src="'+g.img_url+'" loading="lazy" decoding="async" alt="">' : '<div class="placeholder">No preview<br>download images<br>and rebuild</div>';
     var rc = ratingClass(g.rating_pct);
     var ratingHtml = g.rating_pct ? '<span class="rating '+rc+'">'+g.rating_pct+'%</span>' : '<span class="rating rating-none">-</span>';
     var coopHtml = g.coop ? '<span class="mode mode-coop">Co-op</span>' : '';
@@ -266,7 +273,7 @@ function showDetail(id) {
   var overlay = document.getElementById('overlay');
   var detail = document.getElementById('detail');
   var rc = ratingClass(g.rating_pct);
-  var img = g.img_url ? '<img src="'+g.img_url+'" alt="">' : '';
+  var img = g.img_url ? '<img src="'+g.img_url+'" decoding="async" alt="">' : '';
 
   var html = '<div class="close" onclick="document.getElementById(\'overlay\').classList.remove(\'show\')">&times;</div>'
     + '<h2>'+esc(g.title)+'</h2>' + img
@@ -325,7 +332,7 @@ function updateHash() {
   if (pl !== '0') parts.push('pl='+pl);
   if (sort !== 'views') parts.push('sort='+sort);
   if (genres) parts.push('genres='+genres);
-  if (GENRE_MODE === 'and') parts.push('gm=and');
+  if (document.getElementById('genre-mode').checked) parts.push('gm=and');
 
   location.hash = parts.join('&');
 }
@@ -351,8 +358,8 @@ function loadHash() {
     }
   }
   if (h.gm === 'and') {
-    GENRE_MODE = 'and';
-    document.getElementById('genre-mode').textContent = 'AND';
+    document.getElementById('genre-mode').checked = true;
+    document.getElementById('genre-mode-label').textContent = 'AND';
   }
 }
 
@@ -398,8 +405,8 @@ function loadHash() {
     document.getElementById('f-multi').checked = false;
     document.getElementById('f-players').value = '0';
     document.getElementById('f-sort').value = 'views';
-    GENRE_MODE = 'or';
-    document.getElementById('genre-mode').textContent = 'OR';
+    document.getElementById('genre-mode').checked = false;
+    document.getElementById('genre-mode-label').textContent = 'OR';
     var allCbs = document.querySelectorAll('.genre-label input');
     for (var j = 0; j < allCbs.length; j++) { allCbs[j].checked = false; allCbs[j].parentElement.classList.remove('checked'); }
     filterGames();
