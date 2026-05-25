@@ -31,6 +31,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Online-Fix Game Analyzer</title>
+<script data-goatcounter="https://geexmmo.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font:14px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;background:#0d1117;color:#c9d1d9}
