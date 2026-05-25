@@ -318,8 +318,6 @@ document.getElementById('grid').addEventListener('click', function(e) {
   showDetail(id);
   location.hash = '#game=' + id;
 });
-  grid.innerHTML = html;
-}
 
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
