@@ -91,7 +91,13 @@ h1 span{color:#58a6ff;font-size:13px;font-weight:400}
   <label><input type="checkbox" id="f-multi">Multi</label>
   <label title="Minimum player estimate">Players &#x2265;<select id="f-players"><option value="0">Any</option><option value="10000">10K+</option><option value="100000">100K+</option><option value="1000000">1M+</option><option value="10000000">10M+</option></select></label>
   <span class="sep"></span>
-  <label>Genre <div class="genre-list" id="f-genres"></div></label>
+  <label>Genre
+    <span style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+      <span id="genre-mode" onclick="toggleGenreMode()"
+            style="cursor:pointer;font-size:10px;padding:1px 5px;border-radius:3px;background:#21262d;border:1px solid #30363d">OR</span>
+    </span>
+    <div class="genre-list" id="f-genres"></div>
+  </label>
   <span class="sep"></span>
   <label>Sort <select id="f-sort"><option value="views">Views</option><option value="rating">Rating</option><option value="comments">Comments</option><option value="players">Players</option><option value="release">Release date</option></select></label>
   <button id="f-reset">Reset</button>
@@ -155,6 +161,7 @@ GE-Proton/proton run game.exe
 
 <script>
 var GAMES = __DATA__;
+var GENRE_MODE = 'or';
 
 function ratingClass(pct) {
   if (!pct) return 'rating-none';
@@ -164,6 +171,12 @@ function ratingClass(pct) {
 }
 
 function formatNum(n) { return n ? n.toLocaleString() : '0'; }
+
+function toggleGenreMode() {
+  GENRE_MODE = GENRE_MODE === 'or' ? 'and' : 'or';
+  document.getElementById('genre-mode').textContent = GENRE_MODE.toUpperCase();
+  filterGames();
+}
 
 function sortGames(games, by) {
   var key;
@@ -203,6 +216,9 @@ function filterGames() {
   if (activeGenres.length) {
     filtered = filtered.filter(function(g) {
       var gameGenres = (g.genres || '').split(',').map(function(s){return s.trim();});
+      if (GENRE_MODE === 'and') {
+        return activeGenres.every(function(ag){ return gameGenres.indexOf(ag) !== -1; });
+      }
       return activeGenres.some(function(ag){ return gameGenres.indexOf(ag) !== -1; });
     });
   }
@@ -290,16 +306,28 @@ document.getElementById('linux-overlay').addEventListener('click', function(e) {
 });
 
 function updateHash() {
+  var parts = [];
   var s = document.getElementById('f-search').value;
   var cat = document.getElementById('f-cat').value;
   var r = document.getElementById('f-rating').value;
-  var c = document.getElementById('f-coop').checked ? '1' : '0';
-  var m = document.getElementById('f-multi').checked ? '1' : '0';
+  var c = document.getElementById('f-coop').checked;
+  var m = document.getElementById('f-multi').checked;
   var pl = document.getElementById('f-players').value;
   var sort = document.getElementById('f-sort').value;
   var genreCbs = document.querySelectorAll('.genre-label input:checked');
-  var genres = Array.prototype.map.call(genreCbs, function(c){return c.value;}).join(',');
-  location.hash = 's='+encodeURIComponent(s)+'&cat='+cat+'&r='+r+'&c='+c+'&m='+m+'&pl='+pl+'&sort='+sort+'&genres='+genres;
+  var genres = Array.prototype.map.call(genreCbs, function(cb){return cb.value;}).join(',');
+
+  if (s) parts.push('s='+encodeURIComponent(s));
+  if (cat) parts.push('cat='+cat);
+  if (r !== '0' && r !== '') parts.push('r='+r);
+  if (c) parts.push('c=1');
+  if (m) parts.push('m=1');
+  if (pl !== '0') parts.push('pl='+pl);
+  if (sort !== 'views') parts.push('sort='+sort);
+  if (genres) parts.push('genres='+genres);
+  if (GENRE_MODE === 'and') parts.push('gm=and');
+
+  location.hash = parts.join('&');
 }
 
 function loadHash() {
@@ -321,6 +349,10 @@ function loadHash() {
       allCbs[j].checked = active.indexOf(allCbs[j].value) !== -1;
       allCbs[j].parentElement.classList.toggle('checked', allCbs[j].checked);
     }
+  }
+  if (h.gm === 'and') {
+    GENRE_MODE = 'and';
+    document.getElementById('genre-mode').textContent = 'AND';
   }
 }
 
@@ -366,6 +398,8 @@ function loadHash() {
     document.getElementById('f-multi').checked = false;
     document.getElementById('f-players').value = '0';
     document.getElementById('f-sort').value = 'views';
+    GENRE_MODE = 'or';
+    document.getElementById('genre-mode').textContent = 'OR';
     var allCbs = document.querySelectorAll('.genre-label input');
     for (var j = 0; j < allCbs.length; j++) { allCbs[j].checked = false; allCbs[j].parentElement.classList.remove('checked'); }
     filterGames();
