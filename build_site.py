@@ -83,12 +83,35 @@ h1 span{color:#58a6ff;font-size:13px;font-weight:400}
 .detail a{color:#58a6ff}
 
 .empty{padding:40px;text-align:center;color:#8b949e;font-size:14px}
+.scroll-top{position:fixed;bottom:20px;right:20px;z-index:99;width:44px;height:44px;border-radius:50%;background:#238636;color:#fff;border:none;cursor:pointer;font-size:20px;display:none;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.filter-toggle{display:none;margin-left:auto;font-size:12px;color:#58a6ff;cursor:pointer}
+@media(max-width:768px){
+h1{position:static;font-size:16px;padding:10px 12px}
+h1 span{font-size:11px}
+.filters{position:static;padding:8px 12px}
+.filter-toggle{display:inline}
+.filter-group{display:flex;flex-wrap:wrap;gap:6px}
+.filter-group.hide{display:none}
+.grid{grid-template-columns:repeat(2,1fr);gap:6px;padding:8px 10px}
+.card-title{font-size:11px}
+.card-meta{font-size:10px;gap:3px}
+.card-body{padding:5px 7px}
+.card .poster,.card .placeholder{aspect-ratio:16/9}
+.detail{max-width:100%;width:100%;max-height:100vh;border-radius:0}
+.detail td{font-size:12px}
+.detail td:first-child{width:90px}
+.genre-label{font-size:10px;padding:2px 5px}
+}
+@media(max-width:480px){
+.grid{grid-template-columns:repeat(2,1fr);gap:4px;padding:6px 8px}
+}
 </style>
 </head>
 <body>
-<h1>Online-Fix Game Analyzer <span id="game-count"></span> <a style="margin-left:auto;font-size:12px;font-weight:400;color:#58a6ff;cursor:pointer;text-decoration:none" href="#" onclick="showLinuxGuide();return false">&#x1f427; Linux guide</a></h1>
+<h1>Online-Fix Game Analyzer <span id="game-count"></span> <span class="filter-toggle" id="filter-toggle" onclick="toggleFilters()">&#x25bc; Filters</span> <a style="margin-left:auto;font-size:12px;font-weight:400;color:#58a6ff;cursor:pointer;text-decoration:none" href="#" onclick="showLinuxGuide();return false">&#x1f427; Linux guide</a></h1>
 
 <div class="filters" id="filters">
+  <div class="filter-group" id="filter-group">
   <label>Search <input type="text" id="f-search" placeholder="title..."></label>
   <label>FixMe Category <select id="f-cat"><option value="">All</option></select></label>
   <span class="sep"></span>
@@ -110,6 +133,7 @@ h1 span{color:#58a6ff;font-size:13px;font-weight:400}
   <span class="sep"></span>
   <label>Sort <select id="f-sort"><option value="views">Views</option><option value="rating">Rating</option><option value="comments">Comments</option><option value="players">Players</option><option value="release">Release date</option></select></label>
   <button id="f-reset">Reset</button>
+  </div>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -167,6 +191,8 @@ GE-Proton/proton run game.exe
     </div>
   </div>
 </div>
+
+<button class="scroll-top" id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">&#x2b06;</button>
 
 <script>
 var GAMES = __DATA__;
@@ -310,6 +336,18 @@ function showLinuxGuide() {
 
 document.getElementById('linux-overlay').addEventListener('click', function(e) {
   if (e.target === this) this.classList.remove('show');
+});
+
+function toggleFilters() {
+  var g = document.getElementById('filter-group');
+  var t = document.getElementById('filter-toggle');
+  g.classList.toggle('hide');
+  t.innerHTML = g.classList.contains('hide') ? '&#x25b2; Filters' : '&#x25bc; Filters';
+}
+
+window.addEventListener('scroll', function() {
+  var btn = document.getElementById('scroll-top');
+  btn.style.display = window.scrollY > 800 ? 'flex' : 'none';
 });
 
 function updateHash() {
