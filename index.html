@@ -214,7 +214,9 @@ function sortGames(games, by) {
   });
 }
 
-function filterGames() {
+var _lastRenderedHash = null;
+
+function filterGames(skipUpdateHash) {
   var search = (document.getElementById('f-search').value || '').toLowerCase();
   var cat = document.getElementById('f-cat').value;
   var minRating = parseInt(document.getElementById('f-rating').value);
@@ -227,6 +229,13 @@ function filterGames() {
   var isAnd = document.getElementById('genre-mode').checked;
 
   document.getElementById('f-rating-val').textContent = minRating;
+
+  var sig = [search, cat, minRating, coop, multi, minPlayers, sort, activeGenres.join(','), isAnd].join('|');
+  if (sig === _lastRenderedHash) {
+    if (skipUpdateHash !== true) updateHash();
+    return;
+  }
+  _lastRenderedHash = sig;
 
   var filtered = GAMES.filter(function(g) {
     if (search && (g.title || '').toLowerCase().indexOf(search) === -1) return false;
@@ -250,7 +259,7 @@ function filterGames() {
 
   filtered = sortGames(filtered, sort);
   render(filtered);
-  updateHash();
+  if (skipUpdateHash !== true) updateHash();
 }
 
 function render(games) {
@@ -288,8 +297,10 @@ document.getElementById('grid').addEventListener('click', function(e) {
     window.open(card.dataset.url, '_blank');
     return;
   }
+  var parts = location.hash.slice(1).split('&').filter(function(p){ return p && p.indexOf('game=') !== 0; });
+  parts.push('game=' + id);
+  history.pushState({overlay:'detail'}, '', '#' + parts.join('&'));
   showDetail(id);
-  location.hash = '#game=' + id;
 });
 
 function esc(s) {
@@ -306,7 +317,7 @@ function showDetail(id) {
   var rc = ratingClass(g.rating_pct);
   var img = g.img_url ? '<img src="'+g.img_url+'" decoding="async" alt="">' : '';
 
-  var html = '<div class="close" onclick="document.getElementById(\'overlay\').classList.remove(\'show\')">&times;</div>'
+  var html = '<div class="close" onclick="closeDetail()">&times;</div>'
     + '<h2>'+esc(g.title)+'</h2>' + img
     + '<table>'
     + '<tr><td>Category</td><td>'+esc(g.category)+'</td></tr>'
@@ -331,8 +342,14 @@ function showDetail(id) {
   overlay.classList.add('show');
 }
 
+function closeDetail() {
+  document.getElementById('overlay').classList.remove('show');
+  var parts = location.hash.slice(1).split('&').filter(function(p){ return p && p.indexOf('game=') !== 0; });
+  history.replaceState(null, '', '#' + parts.join('&'));
+}
+
 document.getElementById('overlay').addEventListener('click', function(e) {
-  if (e.target === this) this.classList.remove('show');
+  if (e.target === this) closeDetail();
 });
 
 function showLinuxGuide() {
@@ -359,8 +376,21 @@ window.addEventListener('scroll', function() {
 window.addEventListener('popstate', function() {
   var d = document.getElementById('overlay');
   var l = document.getElementById('linux-overlay');
-  if (d.classList.contains('show')) { d.classList.remove('show'); return; }
-  if (l.classList.contains('show')) { l.classList.remove('show'); return; }
+  var h = {};
+  try { var parts = location.hash.slice(1).split('&');
+    for (var i = 0; i < parts.length; i++) { var kv = parts[i].split('='); h[kv[0]] = decodeURIComponent(kv[1] || ''); }
+  } catch(e) {}
+
+  if (h.game) {
+     var gid = parseInt(h.game, 10);
+     if (!isNaN(gid)) showDetail(gid);
+  } else {
+     d.classList.remove('show');
+     l.classList.remove('show');
+  }
+
+  loadHash();
+  filterGames(true);
 });
 
 function updateHash() {
@@ -382,10 +412,18 @@ function updateHash() {
   if (m) parts.push('m=1');
   if (pl !== '0') parts.push('pl='+pl);
   if (sort !== 'views') parts.push('sort='+sort);
-  if (genres) parts.push('genres='+genres);
+  if (genres) parts.push('genres='+encodeURIComponent(genres));
   if (document.getElementById('genre-mode').checked) parts.push('gm=and');
 
-  location.hash = parts.join('&');
+  var currentHash = location.hash.slice(1).split('&');
+  for (var i=0; i<currentHash.length; i++) {
+    if (currentHash[i].indexOf('game=') === 0) parts.push(currentHash[i]);
+  }
+
+  var newHash = parts.join('&');
+  if (location.hash.slice(1) !== newHash) {
+    history.replaceState(null, '', '#' + newHash);
+  }
 }
 
 function loadHash() {
@@ -471,9 +509,8 @@ function loadHash() {
     for (var j = 0; j < allCbs.length; j++) { allCbs[j].checked = false; allCbs[j].parentElement.classList.remove('checked'); }
     filterGames();
   });
-  window.addEventListener('hashchange', function() { loadHash(); filterGames(); });
   loadHash();
-  filterGames();
+  filterGames(true);
 })();
 </script>
 </body>
