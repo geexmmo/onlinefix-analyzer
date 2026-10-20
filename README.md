@@ -2,6 +2,8 @@
 
 Scrapes [online-fix.me](https://online-fix.me) for game fixes and enriches them with Steam data (ratings, player counts, genres, prices). Generates a static filterable web page — automatically updated daily via GitHub Actions.
 
+### GH Deploy publishes public page at [https://geexmmo.github.io/onlinefix-analyzer/](https://geexmmo.github.io/onlinefix-analyzer/)
+
 ### Features
 
 - 1800+ games scraped from 63 pages
